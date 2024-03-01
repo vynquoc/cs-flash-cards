@@ -4,17 +4,28 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/vynquoc/cs-flash-cards/internal/data"
 	"github.com/vynquoc/cs-flash-cards/internal/validator"
 )
 
+const (
+	Tomorrow    = 1
+	ThreeDays   = 3
+	OneWeek     = 7
+	TwoWeeks    = 14
+	OneMonth    = 30
+	ThreeMonths = 90
+)
+
 func (app *application) createCardHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Title       string            `json:"title"`
-		Tags        []string          `json:"tags"`
-		Content     string            `json:"content"`
-		CodeSnippet *data.CodeSnippet `json:"code_snippet"`
+		Title          string            `json:"title"`
+		Tags           []string          `json:"tags"`
+		Content        string            `json:"content"`
+		CodeSnippet    *data.CodeSnippet `json:"code_snippet"`
+		NextReviewDate time.Time         `json:"next_review_date"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -27,6 +38,8 @@ func (app *application) createCardHandler(w http.ResponseWriter, r *http.Request
 		Content: input.Content,
 		Tags:    input.Tags,
 	}
+
+	card.NextReviewDate = app.calculateReviewDate(time.Now().Truncate(24*time.Hour), 1)
 
 	if input.CodeSnippet != nil {
 		card.CodeSnippet = input.CodeSnippet
@@ -92,10 +105,11 @@ func (app *application) updateCardHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var input struct {
-		Title       *string           `json:"title"`
-		Tags        []string          `json:"tags"`
-		Content     *string           `json:"content"`
-		CodeSnippet *data.CodeSnippet `json:"code_snippet"`
+		Title            *string           `json:"title"`
+		Tags             []string          `json:"tags"`
+		Content          *string           `json:"content"`
+		CodeSnippet      *data.CodeSnippet `json:"code_snippet"`
+		UpdateReviewDate *bool             `json:"update_review_date"`
 	}
 	err = app.readJSON(w, r, &input)
 	if err != nil {
@@ -113,7 +127,24 @@ func (app *application) updateCardHandler(w http.ResponseWriter, r *http.Request
 	}
 	if input.CodeSnippet != nil {
 		card.CodeSnippet = input.CodeSnippet
-
+	}
+	if input.UpdateReviewDate != nil && *input.UpdateReviewDate {
+		var days int
+		daysDifferent := int(card.NextReviewDate.Sub(card.CreatedAt).Hours() / 24)
+		fmt.Println(daysDifferent)
+		switch daysDifferent {
+		case Tomorrow:
+			days = ThreeDays
+		case ThreeDays:
+			days = OneWeek
+		case OneWeek:
+			days = TwoWeeks
+		case TwoWeeks:
+			days = OneMonth
+		default:
+			days = ThreeMonths
+		}
+		card.NextReviewDate = app.calculateReviewDate(card.CreatedAt, days)
 	}
 	v := validator.New()
 	if data.ValidateCard(v, card); !v.Valid() {
@@ -180,6 +211,30 @@ func (app *application) listCardsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	err = app.writeJSON(w, http.StatusOK, envelope{"cards": cards, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) listReviewCardHandler(w http.ResponseWriter, r *http.Request) {
+	cards, err := app.models.Cards.GetReviewCards()
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	err = app.writeJSON(w, http.StatusOK, envelope{"cards": cards}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) showRandomCard(w http.ResponseWriter, r *http.Request) {
+	card, err := app.models.Cards.GetRandomCard()
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	err = app.writeJSON(w, http.StatusOK, envelope{"card": card}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

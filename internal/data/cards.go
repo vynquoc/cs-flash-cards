@@ -67,24 +67,24 @@ func ValidateCard(v *validator.Validator, card *Card) {
 	v.Check(len(card.Tags) <= 5, "tags", "must not contain more than 5 tags")
 }
 
-func (m CardModel) Insert(card *Card) error {
+func (c CardModel) Insert(card *Card) error {
 	query := `
 			INSERT INTO cards (title, content, tags, next_review_date, code_snippet)
 			VALUES ($1, $2, $3, $4, $5)
 			RETURNING id, created_at
 		`
 	args := []interface{}{card.Title, card.Content, pq.Array(card.Tags), card.NextReviewDate, card.CodeSnippet}
-	return m.DB.QueryRow(query, args...).Scan(&card.ID, &card.CreatedAt)
+	return c.DB.QueryRow(query, args...).Scan(&card.ID, &card.CreatedAt)
 }
 
-func (m CardModel) Get(id int64) (*Card, error) {
+func (c CardModel) Get(id int64) (*Card, error) {
 	query := `
 		SELECT id, content, title, tags, code_snippet, created_at, next_review_date
 		FROM cards
 		WHERE id = $1
 	`
 	var card Card
-	err := m.DB.QueryRow(query, id).Scan(
+	err := c.DB.QueryRow(query, id).Scan(
 		&card.ID,
 		&card.Content,
 		&card.Title,
@@ -194,4 +194,67 @@ func (c CardModel) GetAll(title string, tags []string, filters Filters) ([]*Card
 	}
 	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
 	return cards, metadata, nil
+}
+
+func (c CardModel) GetReviewCards() ([]*Card, error) {
+	query := `
+		SELECT id, created_at, title, next_review_date, tags, content, code_snippet
+		FROM cards
+		WHERE next_review_date = CURRENT_DATE
+	`
+	rows, err := c.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	cards := []*Card{}
+	for rows.Next() {
+		var card Card
+		err := rows.Scan(
+			&card.ID,
+			&card.CreatedAt,
+			&card.Title,
+			&card.NextReviewDate,
+			pq.Array(&card.Tags),
+			&card.Content,
+			&card.CodeSnippet,
+		)
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, &card)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return cards, nil
+}
+
+func (c CardModel) GetRandomCard() (*Card, error) {
+	query := `
+		SELECT id, content, title, tags, code_snippet, created_at, next_review_date
+		FROM cards
+		ORDER BY RANDOM() 
+		LIMIT 1
+	`
+	var card Card
+	err := c.DB.QueryRow(query).Scan(
+		&card.ID,
+		&card.Content,
+		&card.Title,
+		pq.Array(&card.Tags),
+		&card.CodeSnippet,
+		&card.CreatedAt,
+		&card.NextReviewDate,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &card, nil
+
 }

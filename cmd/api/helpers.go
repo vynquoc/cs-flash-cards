@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/vynquoc/cs-flash-cards/internal/validator"
@@ -127,4 +128,9 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 		return defaultValue
 	}
 	return i
+}
+
+func (app *application) calculateReviewDate(old time.Time, days int) time.Time {
+	newDate := old.Add(time.Duration(days) * 24 * time.Hour)
+	return newDate
 }

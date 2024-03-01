@@ -16,5 +16,7 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodGet, "/v1/cards/:id", app.showCardHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/cards/:id", app.updateCardHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/cards/:id", app.deleteCardHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/review-cards", app.listReviewCardHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/random", app.showRandomCard)
 	return router
 }
