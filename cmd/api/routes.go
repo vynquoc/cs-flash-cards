@@ -6,7 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (app *application) routes() *httprouter.Router {
+func (app *application) routes() http.Handler {
 	router := httprouter.New()
 	router.NotFound = http.HandlerFunc(app.notFoundResponse)
 	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
@@ -18,5 +18,5 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodDelete, "/v1/cards/:id", app.deleteCardHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/review-cards", app.listReviewCardHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/random", app.showRandomCard)
-	return router
+	return app.enableCORS(router)
 }
