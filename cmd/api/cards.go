@@ -26,6 +26,7 @@ func (app *application) createCardHandler(w http.ResponseWriter, r *http.Request
 		Content        string            `json:"content"`
 		CodeSnippet    *data.CodeSnippet `json:"code_snippet"`
 		NextReviewDate time.Time         `json:"next_review_date"`
+		Description    string            `json:"description"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -34,9 +35,10 @@ func (app *application) createCardHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	card := &data.Card{
-		Title:   input.Title,
-		Content: input.Content,
-		Tags:    input.Tags,
+		Title:       input.Title,
+		Content:     input.Content,
+		Tags:        input.Tags,
+		Description: input.Description,
 	}
 
 	card.NextReviewDate = app.calculateReviewDate(time.Now().Truncate(24*time.Hour), 1)
@@ -110,6 +112,7 @@ func (app *application) updateCardHandler(w http.ResponseWriter, r *http.Request
 		Content          *string           `json:"content"`
 		CodeSnippet      *data.CodeSnippet `json:"code_snippet"`
 		UpdateReviewDate *bool             `json:"update_review_date"`
+		Description      *string           `json:"description"`
 	}
 	err = app.readJSON(w, r, &input)
 	if err != nil {
@@ -127,6 +130,9 @@ func (app *application) updateCardHandler(w http.ResponseWriter, r *http.Request
 	}
 	if input.CodeSnippet != nil {
 		card.CodeSnippet = input.CodeSnippet
+	}
+	if input.Description != nil {
+		card.Description = *input.Description
 	}
 	if input.UpdateReviewDate != nil && *input.UpdateReviewDate {
 		var days int

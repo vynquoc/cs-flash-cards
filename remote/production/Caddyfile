@@ -1,0 +1,7 @@
+{
+	email nqvy0901@gmail.com
+}
+
+csflashcards.mooo.com { 
+	reverse_proxy localhost:4000
+}

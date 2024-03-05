@@ -22,6 +22,7 @@ type Card struct {
 	Content        string       `json:"content"`
 	NextReviewDate time.Time    `json:"next_review_date"`
 	CodeSnippet    *CodeSnippet `json:"code_snippet"`
+	Description    string       `json:"description"`
 }
 
 type CardModel struct {
@@ -69,21 +70,22 @@ func ValidateCard(v *validator.Validator, card *Card) {
 
 func (c CardModel) Insert(card *Card) error {
 	query := `
-			INSERT INTO cards (title, content, tags, next_review_date, code_snippet)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO cards (title, content, tags, next_review_date, code_snippet, description)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			RETURNING id, created_at
 		`
-	args := []interface{}{card.Title, card.Content, pq.Array(card.Tags), card.NextReviewDate, card.CodeSnippet}
+	args := []interface{}{card.Title, card.Content, pq.Array(card.Tags), card.NextReviewDate, card.CodeSnippet, card.Description}
 	return c.DB.QueryRow(query, args...).Scan(&card.ID, &card.CreatedAt)
 }
 
 func (c CardModel) Get(id int64) (*Card, error) {
 	query := `
-		SELECT id, content, title, tags, code_snippet, created_at, next_review_date
+		SELECT id, content, title, tags, code_snippet, created_at, next_review_date, description
 		FROM cards
 		WHERE id = $1
 	`
 	var card Card
+	var s sql.NullString
 	err := c.DB.QueryRow(query, id).Scan(
 		&card.ID,
 		&card.Content,
@@ -92,8 +94,11 @@ func (c CardModel) Get(id int64) (*Card, error) {
 		&card.CodeSnippet,
 		&card.CreatedAt,
 		&card.NextReviewDate,
+		&s,
 	)
-
+	if s.Valid {
+		card.Description = s.String
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -108,8 +113,8 @@ func (c CardModel) Get(id int64) (*Card, error) {
 func (c CardModel) Update(card *Card) error {
 	query := `
 		UPDATE cards
-		SET title = $1, content = $2, tags = $3, code_snippet = $4, next_review_date = $5
-		WHERE id = $6
+		SET title = $1, content = $2, tags = $3, code_snippet = $4, next_review_date = $5, description = $6
+		WHERE id = $7
 		RETURNING id
 	`
 	args := []interface{}{
@@ -118,9 +123,9 @@ func (c CardModel) Update(card *Card) error {
 		pq.Array(&card.Tags),
 		card.CodeSnippet,
 		card.NextReviewDate,
+		card.Description,
 		card.ID,
 	}
-
 	err := c.DB.QueryRow(query, args...).Scan(&card.ID)
 	if err != nil {
 		switch {
@@ -158,7 +163,7 @@ func (c CardModel) Delete(id int64) error {
 
 func (c CardModel) GetAll(title string, tags []string, filters Filters) ([]*Card, Metadata, error) {
 	query := fmt.Sprintf(`
-		SELECT count(*) OVER(), id, created_at, title, next_review_date, tags, content, code_snippet
+		SELECT count(*) OVER(), id, created_at, title, next_review_date, tags, content, code_snippet, description
 		FROM cards
 		WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 		AND (tags @> $2 or $2 = '{}')
@@ -174,6 +179,7 @@ func (c CardModel) GetAll(title string, tags []string, filters Filters) ([]*Card
 
 	for rows.Next() {
 		var card Card
+		var s sql.NullString
 		err := rows.Scan(
 			&totalRecords,
 			&card.ID,
@@ -183,7 +189,11 @@ func (c CardModel) GetAll(title string, tags []string, filters Filters) ([]*Card
 			pq.Array(&card.Tags),
 			&card.Content,
 			&card.CodeSnippet,
+			&s,
 		)
+		if s.Valid {
+			card.Description = s.String
+		}
 		if err != nil {
 			return nil, Metadata{}, err
 		}
@@ -198,7 +208,7 @@ func (c CardModel) GetAll(title string, tags []string, filters Filters) ([]*Card
 
 func (c CardModel) GetReviewCards() ([]*Card, error) {
 	query := `
-		SELECT id, created_at, title, next_review_date, tags, content, code_snippet
+		SELECT id, created_at, title, next_review_date, tags, content, code_snippet, description
 		FROM cards
 		WHERE next_review_date = CURRENT_DATE
 	`
@@ -207,6 +217,7 @@ func (c CardModel) GetReviewCards() ([]*Card, error) {
 		return nil, err
 	}
 	cards := []*Card{}
+	var s sql.NullString
 	for rows.Next() {
 		var card Card
 		err := rows.Scan(
@@ -217,9 +228,13 @@ func (c CardModel) GetReviewCards() ([]*Card, error) {
 			pq.Array(&card.Tags),
 			&card.Content,
 			&card.CodeSnippet,
+			&s,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if s.Valid {
+			card.Description = s.String
 		}
 		cards = append(cards, &card)
 	}
@@ -231,12 +246,13 @@ func (c CardModel) GetReviewCards() ([]*Card, error) {
 
 func (c CardModel) GetRandomCard() (*Card, error) {
 	query := `
-		SELECT id, content, title, tags, code_snippet, created_at, next_review_date
+		SELECT id, content, title, tags, code_snippet, created_at, next_review_date, description
 		FROM cards
 		ORDER BY RANDOM() 
 		LIMIT 1
 	`
 	var card Card
+	var s sql.NullString
 	err := c.DB.QueryRow(query).Scan(
 		&card.ID,
 		&card.Content,
@@ -245,6 +261,7 @@ func (c CardModel) GetRandomCard() (*Card, error) {
 		&card.CodeSnippet,
 		&card.CreatedAt,
 		&card.NextReviewDate,
+		&s,
 	)
 
 	if err != nil {
@@ -255,6 +272,11 @@ func (c CardModel) GetRandomCard() (*Card, error) {
 			return nil, err
 		}
 	}
+
+	if s.Valid {
+		card.Description = s.String
+	}
+
 	return &card, nil
 
 }
