@@ -210,7 +210,7 @@ func (c CardModel) GetReviewCards() ([]*Card, error) {
 	query := `
 		SELECT id, created_at, title, next_review_date, tags, content, code_snippet, description
 		FROM cards
-		WHERE next_review_date = CURRENT_DATE
+		WHERE next_review_date <= CURRENT_DATE
 	`
 	rows, err := c.DB.Query(query)
 	if err != nil {

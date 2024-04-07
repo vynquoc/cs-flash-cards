@@ -19,7 +19,7 @@ add-apt-repository --yes universe
 apt update
 apt --yes -o Dpkg::Options::="--force-confnew" upgrade
 # Set the system timezone and install all locales.
-timedatectl set-timezone ${TIMEZONE} apt --yes install locales-all
+timedatectl set-timezone Asia/Ho_Chi_Minh
 # Add the new user (and give them sudo privileges).
 useradd --create-home --shell "/bin/bash" --groups sudo "${USERNAME}"
 # Force a password to be set for the new user the first time they log in.
