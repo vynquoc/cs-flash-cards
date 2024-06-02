@@ -60,7 +60,7 @@ build/api:
 
 # ==================================================================================== # # PRODUCTION
 # ==================================================================================== #
-production_host_ip = '146.190.91.247'
+production_host_ip = '52.62.76.64'
 ## production/connect: connect to the production server
 .PHONY: production/connect
 production/connect:

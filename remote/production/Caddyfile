@@ -1,7 +1,7 @@
 {
-	email nqvy0901@gmail.com
+	email vynquoc@gmail.com
 }
 
-csflashcards.mooo.com { 
+csflashcards.chickenkiller.com { 
 	reverse_proxy localhost:4000
 }
