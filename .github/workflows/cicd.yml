@@ -23,13 +23,13 @@ jobs:
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/csflashcards .
       - name: Push Docker image to Dockerhub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/csflashcards:lastest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/csflashcards:latest
   deploy:
     needs: build
     runs-on: self-hosted
     steps:
       - name: Pull Docker image from Dockerhub
-        run: docker pull ${{ secrets.DOCKER_USERNAME }}/csflashcards:lastest
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/csflashcards:latest
       - name: Delete existing Docker container
         run: docker rm -f csflashcards-container || true
       - name: Run Docker container
