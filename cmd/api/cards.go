@@ -10,15 +10,6 @@ import (
 	"github.com/vynquoc/cs-flash-cards/internal/validator"
 )
 
-const (
-	Tomorrow    = 1
-	ThreeDays   = 3
-	OneWeek     = 7
-	TwoWeeks    = 14
-	OneMonth    = 30
-	ThreeMonths = 90
-)
-
 func (app *application) createCardHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Title          string            `json:"title"`
@@ -107,12 +98,12 @@ func (app *application) updateCardHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var input struct {
-		Title            *string           `json:"title"`
-		Tags             []string          `json:"tags"`
-		Content          *string           `json:"content"`
-		CodeSnippet      *data.CodeSnippet `json:"code_snippet"`
-		UpdateReviewDate *bool             `json:"update_review_date"`
-		Description      *string           `json:"description"`
+		Title          *string           `json:"title"`
+		Tags           []string          `json:"tags"`
+		Content        *string           `json:"content"`
+		CodeSnippet    *data.CodeSnippet `json:"code_snippet"`
+		Description    *string           `json:"description"`
+		NextReviewDate time.Time         `json:"next_review_date"`
 	}
 	err = app.readJSON(w, r, &input)
 	if err != nil {
@@ -134,24 +125,7 @@ func (app *application) updateCardHandler(w http.ResponseWriter, r *http.Request
 	if input.Description != nil {
 		card.Description = *input.Description
 	}
-	if input.UpdateReviewDate != nil && *input.UpdateReviewDate {
-		var days int
-		daysDifferent := int(card.NextReviewDate.Sub(card.CreatedAt).Hours() / 24)
-		fmt.Println(daysDifferent)
-		switch daysDifferent {
-		case Tomorrow:
-			days = ThreeDays
-		case ThreeDays:
-			days = OneWeek
-		case OneWeek:
-			days = TwoWeeks
-		case TwoWeeks:
-			days = OneMonth
-		default:
-			days = ThreeMonths
-		}
-		card.NextReviewDate = app.calculateReviewDate(card.CreatedAt, days)
-	}
+	card.NextReviewDate = input.NextReviewDate
 	v := validator.New()
 	if data.ValidateCard(v, card); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)

@@ -18,5 +18,6 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodDelete, "/v1/cards/:id", app.deleteCardHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/review-cards", app.listReviewCardHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/random", app.showRandomCard)
+	router.HandlerFunc(http.MethodPost, "/v1/upload", app.uploadImageHandler)
 	return app.enableCORS(router)
 }

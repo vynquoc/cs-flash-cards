@@ -1,0 +1,36 @@
+name: Deploy Go Application
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Create .env
+        run: |
+          echo "PORT=${{ secrets.PORT }}" > .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
+          echo "AWS_BUCKET=${{ secrets.AWS_BUCKET }}" >> .env
+      - name: Login to Dockerhub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/csflashcards .
+      - name: Push Docker image to Dockerhub
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/csflashcards:lastest
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Pull Docker image from Dockerhub
+        run: docker pull ${{ secrets.DOCKER_USERNAME }}/csflashcards:lastest
+      - name: Delete existing Docker container
+        run: docker rm -f csflashcards-container || true
+      - name: Run Docker container
+        run: docker run -d -p 4000:4000 --name csflashcards-container ${{ secrets.DOCKER_USERNAME }}/csflashcards

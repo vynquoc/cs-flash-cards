@@ -8,8 +8,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/vynquoc/cs-flash-cards/internal/data"
 )
@@ -25,26 +30,43 @@ type config struct {
 		maxIdleConns int
 		maxIdleTime  string
 	}
+	s3 struct {
+		region     string
+		bucketName string
+	}
 }
 
 type application struct {
 	config config
 	logger *log.Logger
 	models data.Models
+	s3     *s3.S3
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	var cfg config
-	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("CSFLASHCARDS_DB_DSN"), "PostgreSQL DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
-	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
+	flag.StringVar(&cfg.db.maxIdleTime, "db-mx-idle-time", "15m", "PostgreSQL max connection idle time")
 
 	flag.Parse()
 
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	cfg.s3.region = os.Getenv("AWS_REGION")
+	cfg.s3.bucketName = os.Getenv("S3_BUCKET")
+	port, err := strconv.Atoi(os.Getenv("PORT"))
+
+	if err != nil {
+		logger.Fatal(err)
+	}
+	cfg.port = port
 
 	db, err := openDB(cfg)
 
@@ -56,10 +78,16 @@ func main() {
 
 	logger.Printf("database connection pool established")
 
+	s3Session, err := createS3session(cfg)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	app := &application{
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		s3:     s3Session,
 	}
 
 	srv := &http.Server{
@@ -97,4 +125,14 @@ func openDB(cfg config) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+func createS3session(cfg config) (*s3.S3, error) {
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(cfg.s3.region),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s3.New(sess), nil
 }
