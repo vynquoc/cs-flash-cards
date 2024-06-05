@@ -1,7 +1,0 @@
-{
-	email vynquoc@gmail.com
-}
-
-csflashcards.chickenkiller.com { 
-	reverse_proxy localhost:4000
-}
