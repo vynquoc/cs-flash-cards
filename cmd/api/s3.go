@@ -37,6 +37,7 @@ func (app *application) uploadImageHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	imageURL := fmt.Sprintf("https://%s.s3-%s.amazonaws.com/%s", app.config.s3.bucketName, app.config.s3.region, fileName)
+	app.logger.Print(imageURL)
 	err = app.writeJSON(w, http.StatusCreated, envelope{"image_url": imageURL}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
