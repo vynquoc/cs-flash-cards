@@ -60,7 +60,7 @@ func main() {
 
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 	cfg.s3.region = os.Getenv("AWS_REGION")
-	cfg.s3.bucketName = os.Getenv("S3_BUCKET")
+	cfg.s3.bucketName = os.Getenv("AWS_BUCKET")
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 
 	if err != nil {
