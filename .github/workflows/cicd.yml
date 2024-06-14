@@ -31,11 +31,7 @@ jobs:
     steps:
       - name: Pull Docker image from Dockerhub
         run: docker pull ${{ secrets.DOCKER_USERNAME }}/csflashcards:latest
-      - name: Stop and remove existing container
-        run: |
-          if [ $(docker ps -q -f name=csflashcards-container) ]; then
-            docker stop csflashcards-container
-            docker rm csflashcards-container
-          fi
+      - name: Delete existing Docker container
+        run: docker rm -f csflashcards-container || true
       - name: Run Docker container
         run: docker run -d -p 4000:4000 --name csflashcards-container ${{ secrets.DOCKER_USERNAME }}/csflashcards
